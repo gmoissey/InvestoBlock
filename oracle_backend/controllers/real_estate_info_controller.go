@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"oracle_backend/database"
 	"oracle_backend/models"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -142,6 +143,96 @@ func DeleteRealEstateById() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Real estate deleted successfully",
 			"result":  result,
+		})
+	}
+}
+
+func GetFilteredRealEstateInfo() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		context, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		//get the query params
+		marketPriceMin := ctx.Query("market_price_min")
+		marketPriceMax := ctx.Query("market_price_max")
+		states := ctx.Query("states")
+		cities := ctx.Query("cities")
+		bedsMin := ctx.Query("beds_min")
+		bedsMax := ctx.Query("beds_max")
+		bathsMin := ctx.Query("baths_min")
+		bathsMax := ctx.Query("baths_max")
+		sqftMin := ctx.Query("sqft_min")
+		sqftMax := ctx.Query("sqft_max")
+		yearBuiltMin := ctx.Query("year_built_min")
+		yearBuiltMax := ctx.Query("year_built_max")
+
+		//create the filter
+		filter := bson.M{}
+
+		//add the market price filter
+		if marketPriceMin != "" && marketPriceMax != "" {
+			filter["market_price"] = bson.M{"$gte": 130000, "$lte": 230000}
+		}
+
+		//add the state filter
+		if states != "" {
+			filter["state"] = bson.M{"$in": strings.Split(states, ",")}
+		}
+
+		//add the city filter
+		if cities != "" {
+			filter["city"] = bson.M{"$in": strings.Split(cities, ",")}
+		}
+
+		//add the beds filter
+		if bedsMin != "" && bedsMax != "" {
+			filter["beds"] = bson.M{"$gte": bedsMin, "$lte": bedsMax}
+		}
+
+		//add the baths filter
+		if bathsMin != "" && bathsMax != "" {
+			filter["baths"] = bson.M{"$gte": bathsMin, "$lte": bathsMax}
+		}
+
+		//add the sqft filter
+		if sqftMin != "" && sqftMax != "" {
+			filter["sqft"] = bson.M{"$gte": sqftMin, "$lte": sqftMax}
+		}
+
+		//add the year built filter
+		if yearBuiltMin != "" && yearBuiltMax != "" {
+			filter["year_built"] = bson.M{"$gte": yearBuiltMin, "$lte": yearBuiltMax}
+		}
+
+		//get the real estate info
+		cursor, err := realEstateInfoCollection.Find(context, filter)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		//close the cursor
+		defer cursor.Close(context)
+
+		//create a slice to store the real estate info
+		var realEstates []models.RealEstate
+
+		//loop through the cursor
+		for cursor.Next(context) {
+			//create a real estate
+			var realEstate models.RealEstate
+
+			//decode the real estate
+			cursor.Decode(&realEstate)
+
+			//add the real estate to the slice
+			realEstates = append(realEstates, realEstate)
+		}
+
+		//return the real estate info
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Real estate info retrieved successfully",
+			"result":  realEstates,
 		})
 	}
 }
