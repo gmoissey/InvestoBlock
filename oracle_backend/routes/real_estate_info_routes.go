@@ -7,6 +7,6 @@ import (
 )
 
 func RealEstateInfoRoutes(router *gin.Engine) {
-	router.GET("/real_estate_info", controllers.GetRealEstateByID())
+	router.GET("/real_estate_info/:id", controllers.GetRealEstateByID())
 	router.POST("/real_estate_info", controllers.CreateRealEstate())
 }
